@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>語詞接龍幻境島 (終極教學版)</title>
+  <style>
+    body { margin: 0; overflow: hidden; font-family: '微軟正黑體', sans-serif; background-color: #000; color: #fff; touch-action: none; }
+    * { box-sizing: border-box; }
+
+    #welcome-screen { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.85); display: flex; justify-content: center; align-items: center; z-index: 999; }
+    .welcome-box { background: rgba(25, 30, 50, 0.85); border: 1px solid rgba(255, 255, 255, 0.3); backdrop-filter: blur(15px); padding: 40px; border-radius: 20px; width: 90%; max-width: 400px; text-align: center; box-shadow: 0 0 30px rgba(0, 255, 204, 0.5); }
+    
+    #class-select { width: 100%; font-size: 20px; padding: 12px; margin: 0 0 15px 0; border-radius: 8px; border: 2px solid #00ffcc; background: rgba(0,0,0,0.5); color: #fff; text-align: center; cursor: pointer; }
+    #class-select:focus { outline: none; box-shadow: 0 0 10px #00ffcc; }
+    
+    #player-name-input { width: 100%; font-size: 20px; padding: 12px; margin: 0 0 20px 0; border-radius: 8px; border: 2px solid #00ffcc; background: rgba(0,0,0,0.5); color: #fff; text-align: center; }
+    #player-name-input:focus { outline: none; box-shadow: 0 0 10px #00ffcc; }
+
+    #lobby-view { width: 100vw; height: 100vh; background: #050505; display: flex; justify-content: center; align-items: center; }
+    #map-container { position: relative; width: 100%; max-width: 177.77vh; height: 100%; max-height: 56.25vw; box-shadow: 0 0 50px rgba(255,255,255,0.1); }
+    #world-map { width: 100%; height: 100%; display: block; object-fit: cover; }
+    
+    .hotspot { position: absolute; cursor: pointer; border-radius: 20px; transition: all 0.2s ease; z-index: 10; }
+    .hotspot:hover { transform: scale(1.02); box-shadow: 0 0 20px rgba(255, 255, 255, 0.6); background: rgba(255, 255, 255, 0.1); border: 2px solid rgba(255, 255, 255, 0.8); }
+
+    .overlay { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.7); display: none; justify-content: center; align-items: center; z-index: 100; }
+    .dialog-box { background: rgba(25, 30, 50, 0.95); border: 1px solid rgba(255, 255, 255, 0.3); backdrop-filter: blur(15px); padding: 30px; border-radius: 20px; width: 90%; max-width: 450px; text-align: center; box-shadow: 0 0 30px rgba(0, 150, 255, 0.5); }
+    .dialog-title { font-size: 28px; margin-bottom: 5px; font-weight: bold; }
+    .dialog-subtitle { font-size: 16px; color: #00ffcc; margin-bottom: 10px; font-weight: bold; }
+    .dialog-desc { font-size: 14px; margin-bottom: 20px; color: #ccc; line-height: 1.6; text-align: justify; }
+    
+    .leaderboard { text-align: left; background: rgba(0, 0, 0, 0.5); padding: 15px; border-radius: 10px; margin-bottom: 20px; }
+    .lb-item { display: flex; justify-content: space-between; margin-bottom: 8px; border-bottom: 1px dashed #555; padding-bottom: 5px; }
+    .lb-item:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+    .lb-rank { color: #ffd700; font-weight: bold; width: 35px; }
+    .lb-name { flex-grow: 1; color: #fff; }
+    .lb-score { color: #00ffcc; font-weight: bold; }
+
+    #game-view { position: relative; width: 100vw; height: 100vh; display: none; flex-direction: column; overflow: hidden; background: #000; }
+    
+    @keyframes breath { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+    #game-bg-layer { position: absolute; top:0; left:0; width:100%; height:100%; background-size: cover; background-position: center; background-repeat: no-repeat; animation: breath 30s infinite ease-in-out; z-index: 0; }
+    #bg-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+    #game-overlay { position: absolute; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.3); z-index: 2; pointer-events: none; }
+    
+    #game-header { position: relative; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.6); border-bottom: 2px solid rgba(255,255,255,0.2); z-index: 10; backdrop-filter: blur(5px); }
+    #game-header-left { display: flex; flex-direction: column; max-width: 70%; }
+    #game-island-name { font-size: 24px; font-weight: bold; text-shadow: 0 0 10px rgba(0,0,0,0.8); }
+    #game-island-desc { font-size: 14px; color: #ddd; margin-top: 5px; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); }
+    .game-stats { font-size: 20px; color: #ffcc00; text-align: right; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); }
+    #timer { color: #ff4d4d; font-weight: bold; }
+
+    #display-area { flex: 1; display: flex; justify-content: center; align-items: center; overflow: hidden; position: relative; z-index: 5; }
+    .word-display { font-size: 90px; font-weight: bold; position: absolute; transition: all 0.5s ease; z-index: 10; }
+    
+    #input-area { position: relative; height: 35%; display: flex; flex-direction: column; justify-content: center; align-items: center; background: transparent; padding: 20px; z-index: 10; }
+    .input-container { display: flex; gap: 10px; width: 90%; max-width: 500px; }
+    
+    #udl-container { display: none; flex-wrap: wrap; justify-content: center; gap: 12px; width: 100%; max-width: 600px; }
+    .udl-btn { font-family: '微軟正黑體', sans-serif; font-size: 26px; padding: 15px 25px; border-radius: 12px; border: 2px solid rgba(255,255,255,0.3); cursor: pointer; font-weight: bold; background: rgba(0, 255, 204, 0.85); color: #000; box-shadow: 0 5px 15px rgba(0,0,0,0.5); transition: all 0.2s; flex: 1 1 30%; min-width: 120px; }
+    .udl-btn:active { transform: scale(0.95); }
+    .udl-btn:disabled { background: #555 !important; color: #888 !important; border-color: #333 !important; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
+
+    #word-input { flex: 1; font-size: 24px; padding: 15px; border-radius: 10px; border: 2px solid rgba(255,255,255,0.3); text-align: center; background: rgba(20,20,20,0.8); color: #fff; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
+    #word-input:focus { outline: none; box-shadow: 0 0 15px #00ffcc; border-color: #00ffcc; }
+    #btn-submit { font-size: 24px; padding: 15px 30px; border-radius: 10px; border: none; cursor: pointer; font-weight: bold; background: #00ffcc; color: #000; box-shadow: 0 5px 15px rgba(0,0,0,0.6); }
+    #sys-message { margin-top: 15px; font-size: 18px; color: #ff4d4d; min-height: 24px; font-weight: bold; text-shadow: 2px 2px 4px rgba(0,0,0,1); }
+
+    .action-btn { padding: 12px 25px; margin: 5px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; }
+    .btn-green { background: #00ffcc; color: #000; }
+    .btn-red { background: #ff4d4d; color: #fff; }
+  </style>
+</head>
+<body>
+
+  <div id="welcome-screen">
+    <div class="welcome-box">
+      <h1 style="color: #00ffcc; margin-top:0; font-size:32px;">語詞接龍幻境島</h1>
+      <p style="color: #ccc; line-height:1.6; margin-bottom:10px;">歡迎來到充滿文字魔力的世界！<br>請選擇年級並留下探險家大名：</p>
+      
+      <!-- 年級選擇下拉選單 -->
+      <select id="class-select">
+        <option value="大亂鬥">大亂鬥</option>
+        <option value="6年級">6 年級</option>
+        <option value="5年級">5 年級</option>
+        <option value="4年級">4 年級</option>
+      </select>
+
+      <input type="text" id="player-name-input" placeholder="例如：管嶼飛毛腿" autocomplete="off" maxlength="12">
+      <button class="action-btn btn-green" id="btn-start-explore" style="width: 100%;">進入地圖</button>
+    </div>
+  </div>
+
+  <div id="lobby-view">
+    <div id="map-container"><img src="大廳.jpg" id="world-map" alt="世界地圖"></div>
+    <div class="overlay" id="lobby-dialog">
+      <div class="dialog-box">
+        <div class="dialog-title" id="d-title">島嶼名稱</div>
+        <div class="dialog-subtitle" id="d-subtitle">目前顯示: 大亂鬥</div>
+        <div class="dialog-desc" id="d-desc">意境說明...</div>
+        <div class="leaderboard" id="d-leaderboard"></div>
+        <button class="action-btn btn-green" id="btn-enter-game">確認進入挑戰</button>
+        <button class="action-btn btn-red" id="btn-leave-door">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="game-view">
+    <div id="game-bg-layer"></div>
+    <canvas id="bg-canvas"></canvas>
+    <div id="game-overlay"></div>
+    
+    <div id="game-header">
+      <div id="game-header-left">
+        <div id="game-island-name">島嶼名稱</div>
+        <div id="game-island-desc">島嶼意境說明</div>
+      </div>
+      <div class="game-stats">時間: <span id="timer">180</span>s<br>成功: <span id="score">0</span></div>
+    </div>
+    <div id="display-area"></div>
+    <div id="input-area">
+      <!-- 一般打字區 -->
+      <div class="input-container" id="normal-container">
+        <input type="text" id="word-input" placeholder="輸入接龍詞彙..." autocomplete="off">
+        <button id="btn-submit">送出</button>
+      </div>
+      <!-- UDL 選擇按鈕區 -->
+      <div id="udl-container"></div>
+      
+      <div id="sys-message"></div>
+    </div>
+    <div class="overlay" id="result-dialog">
+      <div class="dialog-box">
+        <div class="dialog-title" style="color: #ffcc00;">時間到！</div>
+        <div class="dialog-desc" style="font-size: 20px;">你成功接了 <span id="result-score" style="color:#00ffcc; font-weight:bold; font-size:28px;">0</span> 個詞</div>
+        <h3 style="margin-top:20px; margin-bottom:10px;">班級排行榜 Top 7</h3>
+        <div class="leaderboard" id="r-leaderboard"></div>
+        <button class="action-btn btn-green" id="btn-back-lobby" style="width: 100%;">返回地圖</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 核心腳本 ================= -->
+  <script>
+    // ⬇️⬇️⬇️⬇️⬇️ 請貼上您最新部署的 GAS 網址 ⬇️⬇️⬇️⬇️⬇️
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbxqSWoj-89oVPJ-OsYhHnWkP39jeE8BwqHbGNaZl7HPBp2L120w5gWHj_AVLG2_nTEy/exec"; 
+
+    // ================= [原生合成音效 與 背景音樂引擎] =================
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const bgmLobby = new Audio("lobby.mp3");
+    let currentBgm = null;
+
+    function playSound(type) { 
+      try {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        const now = audioCtx.currentTime;
+        
+        if (type === 'correct') {
+          osc.type = 'sine'; osc.frequency.setValueAtTime(880, now); osc.frequency.exponentialRampToValueAtTime(1760, now + 0.15); 
+          gain.gain.setValueAtTime(0.5, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15); 
+          osc.start(now); osc.stop(now + 0.15);
+        } else if (type === 'wrong') {
+          osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, now);
+          gain.gain.setValueAtTime(0.3, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+          osc.start(now); osc.stop(now + 0.3);
+        } else if (type === 'end') {
+          osc.type = 'triangle'; osc.frequency.setValueAtTime(659, now); osc.frequency.setValueAtTime(523, now + 0.2); osc.frequency.setValueAtTime(392, now + 0.4); 
+          gain.gain.setValueAtTime(0.5, now); gain.gain.linearRampToValueAtTime(0, now + 0.6);
+          osc.start(now); osc.stop(now + 0.6);
+        }
+      } catch(e) { console.log("音效合成失敗", e); } 
+    }
+
+    function switchBgm(newBgmAudio) {
+      if (currentBgm) { currentBgm.pause(); currentBgm.currentTime = 0; }
+      currentBgm = newBgmAudio;
+      if (currentBgm) { currentBgm.loop = true; currentBgm.play().catch(e => console.log("瀏覽器阻擋自動播放")); }
+    }
+
+    // ================= [設定區：老師白名單與 UDL 字庫] =================
+    let currentPlayerName = "神秘玩家"; 
+    let currentClass = "大亂鬥";
+    let isUDLMode = false;
+    let currentIsland = null;
+    let actualUdlCount = 0; // 新增：追蹤 UDL 實際答對題數
+
+    const teacherWhiteList = ["披薩", "火車", "珍珠", "冰淇淋", "草莓", "橡皮擦", "啦啦隊", "向日葵", "太空船", "游泳圈", "麥克風", "外星人", "遙控器", "巧克力", "電腦", "手機", "網頁", "遊戲"];
+    
+    // 【修正】確保所有正解語詞的「第一個字」都對應前面的 key，避免無窮迴圈
+    const udlWordFamilies = {
+      "青家族": { "晴":"晴天", "情":"情況", "睛":"睛明", "清":"清水", "請":"請問", "青":"青草", "精":"精神" },
+      "包家族": { "飽":"飽滿", "抱":"抱歉", "跑":"跑步", "泡":"泡麵", "炮":"炮竹", "包":"包子", "胞":"胞兄" },
+      "交家族": { "校":"校園", "較":"較量", "膠":"膠水", "咬":"咬牙", "絞":"絞肉", "交":"交通", "郊":"郊外" },
+      "艮家族": { "根":"根本", "跟":"跟隨", "很":"很多", "狠":"狠心", "恨":"恨意", "銀":"銀行", "眼":"眼鏡" },
+      "方家族": { "放":"放學", "房":"房子", "防":"防止", "訪":"訪問", "芳":"芳香", "方":"方向", "仿":"仿造" },
+      "工家族": { "功":"功課", "攻":"攻擊", "紅":"紅色", "空":"空氣", "江":"江水", "工":"工人", "虹":"虹彩" }
+    };
+    const fallbackWords = ["天空","空氣","氣球","球場","地方","方向","太陽","陽光","明天","天氣","水滴","落下","下面","麵包","包裝","準備","用心","心情","世界","線條","條件","數字","體育","樂園","區域","外套","房子","子彈","黃色","彩虹","客人","人類","態度","過去","年代","代表","表格","樣子","孩子","夜晚","晚安","安全","全部","分數","數量","語文","文化","學校","校長","長大","大小"];
+
+    const islandsData = [
+  { id: "wind", area: { t: 2, l: 1, w: 22, h: 25 }, bg: "風.jpg", bgm: "bgm_wind.mp3", name: "連嘆息也被帶走的崖壁", color: 0xa9a9a9, words: ["狂風", "巧克力", "轟隆", "南瓜", "水滴", "布丁", "太空船", "麵條", "煙火秀", "和尚", "奇幻", "算盤"], desc: "在高聳的峭壁上，任何微小的聲音或煩惱都會在開口的瞬間消散無蹤。" },
+  { id: "cloud", area: { t: 18, l: 15, w: 22, h: 28 }, bg: "雲.jpg", bgm: "bgm_cloud.mp3", name: "漫步在白日夢的邊界", color: 0xffffff, words: ["峽谷", "星空", "雷聲", "樹冠", "烤箱", "斑馬", "火花", "造型", "晴空塔", "埃及", "旋律", "磚塊", "果汁"], desc: "人類腦海中最鬆軟、沒有邊界的夢境地帶。" },
+  { id: "light", area: { t: 2, l: 40, w: 20, h: 25 }, bg: "光.jpg", bgm: "bgm_light.mp3", name: "破曉折射的透明海", color: 0xffffcc, words: ["氣流", "黑夜", "巨響", "落葉", "沙漠", "游泳圈", "溫暖", "青醬", "通訊", "尼羅河", "體驗", "大蒜", "迫不及待"], desc: "整座島猶如一顆漂浮的巨大三稜鏡，散發著澄澈的透明光芒。" },
+  { id: "dark", area: { t: 2, l: 75, w: 22, h: 28 }, bg: "暗.jpg", bgm: "bgm_dark.mp3", name: "藏匿於星空背後的靜謐", color: 0x191970, words: ["珍珠", "影子", "草莓", "年輪", "圖書館", "砂礫", "營火", "道地", "商機", "地勢", "芝麻開門", "折射", "口袋"], desc: "在所有發光體背後，那片絕對安靜、能夠溫柔包容一切疲憊的深邃空間。" },
+  { id: "thunder", area: { t: 28, l: 35, w: 20, h: 20 }, bg: "雷.jpg", bgm: "bgm_thunder.mp3", name: "震顫穹頂的無形低鳴", color: 0x483d8b, words: ["火車", "幽暗", "橡皮擦", "綠意", "齒輪", "塵土", "夕陽", "大開眼界", "收訊", "鬱金香", "邁開", "透明", "數學"], desc: "沒有光，只有讓空氣跟著共振、使萬物屏息的低沉轟隆聲。" },
+  { id: "electric", area: { t: 25, l: 55, w: 22, h: 25 }, bg: "電.jpg", bgm: "bgm_electric.mp3", name: "撕裂夜幕的銀白脈絡", color: 0x00ffff, words: ["白雲", "向日葵", "閃電", "神木", "銅鐘", "遺跡", "企鵝", "日本", "吉隆坡", "奧地利", "神燈", "光芒", "遲到"], desc: "像在深邃的夜空中，瞬間蔓延開來、轉瞬即逝的危險神經網。" },
+  { id: "wood", area: { t: 50, l: 2, w: 22, h: 48 }, bg: "木.jpg", bgm: "bgm_wood.mp3", name: "根鬚盤結的無名洲", color: 0x228b22, words: ["邊界", "鬧鐘", "夜幕", "遙控器", "鐵鏽", "城牆", "雪人", "未知", "連通橋", "划船", "榮華富貴", "水晶", "準時"], desc: "植物在無人知曉的地底瘋狂生長、交錯，充滿原始的生命力。" },
+  { id: "water", area: { t: 55, l: 23, w: 17, h: 40 }, bg: "水.jpg", bgm: "bgm_water.mp3", name: "潮汐親吻的倒影", color: 0x00bfff, words: ["柔軟", "啦啦隊", "銀白", "拉麵", "鋼鐵", "泥沙", "冰淇淋", "難忘", "泰國", "滑雪", "背心", "稜鏡"], desc: "島嶼本身彷彿不存在，只是一抹隨著海浪起伏、無從捕捉的幻影。" },
+  { id: "metal", area: { t: 55, l: 40, w: 18, h: 40 }, bg: "金.jpg", bgm: "bgm_metal.mp3", name: "鏽鐘迴響之岬", color: 0xcd7f32, words: ["棉花", "震動", "光速", "外星人", "迴聲", "陶土", "下午", "長頸鹿", "印尼", "懷錶", "晨曦"], desc: "生鏽的銅鐘伴隨海風吹拂的迴聲，在岬角訴說著時間的滄桑。" },
+  { id: "earth", area: { t: 50, l: 58, w: 20, h: 45 }, bg: "土.jpg", bgm: "bgm_earth.mp3", name: "指尖滑落的砂礫之城", color: 0xd2b48c, words: ["水氣", "穹頂", "刺眼", "浪花", "發條", "化石", "餅皮", "阻尼器", "寺廟", "黑洞", "鑰匙"], desc: "這是一座抓不住、彷彿隨時會隨風崩解的荒涼古城。" },
+  { id: "fire", area: { t: 50, l: 78, w: 20, h: 48 }, bg: "火.jpg", bgm: "bgm_fire.mp3", name: "餘燼與晚霞共舞之地", color: 0xff4500, words: ["高壓", "烏龜", "毛線", "倒影", "麥克風", "水母", "美食", "特技", "食材", "醬料", "印度", "地震", "搖晃"], desc: "火光即將熄滅前，與天際線橘紅晚霞融為一體的溫暖之地。" }
+];
+
+    // ================= [遊戲主邏輯] =================
+    document.getElementById('btn-start-explore').addEventListener('click', () => {
+      currentClass = document.getElementById('class-select').value;
+      const nameVal = document.getElementById('player-name-input').value.trim();
+      if (nameVal !== "") {
+        if (nameVal.endsWith('#')) { isUDLMode = true; currentPlayerName = nameVal.slice(0, -1); } 
+        else { isUDLMode = false; currentPlayerName = nameVal; }
+      }
+      document.getElementById('welcome-screen').style.display = 'none';
+      switchBgm(bgmLobby); 
+    });
+
+    const mapContainer = document.getElementById('map-container');
+    islandsData.forEach(data => {
+      const hotspot = document.createElement('div');
+      hotspot.className = 'hotspot';
+      hotspot.style.top = data.area.t + '%'; hotspot.style.left = data.area.l + '%';
+      hotspot.style.width = data.area.w + '%'; hotspot.style.height = data.area.h + '%';
+      hotspot.title = data.name; 
+      
+      hotspot.addEventListener('click', () => {
+        currentIsland = data;
+        document.getElementById('d-title').innerText = data.name;
+        document.getElementById('d-subtitle').innerText = `🏆 排行榜 (${currentClass})`;
+        document.getElementById('d-title').style.color = '#' + data.color.toString(16).padStart(6, '0');
+        document.getElementById('d-desc').innerText = data.desc;
+        loadLeaderboardJSONP(data.id, 'd-leaderboard');
+        document.getElementById('lobby-dialog').style.display = 'flex';
+      });
+      mapContainer.appendChild(hotspot);
+    });
+
+    document.getElementById('btn-leave-door').addEventListener('click', () => { document.getElementById('lobby-dialog').style.display = 'none'; });
+
+    function renderLeaderboard(cid, data) { document.getElementById(cid).innerHTML = data.map((u, i) => `<div class="lb-item"><span class="lb-rank">#${i+1}</span><span class="lb-name">${u.name}</span><span class="lb-score">${u.score}</span></div>`).join(''); }
+
+    let jsonpCallbackNameCount = 0;
+    function fetchJSONP(url) {
+        return new Promise((resolve, reject) => {
+            const callbackName = 'jsonp_cb_' + (++jsonpCallbackNameCount);
+            const script = document.createElement('script'); script.src = url + '&callback=' + callbackName;
+            window[callbackName] = function(data) { delete window[callbackName]; script.remove(); resolve(data); };
+            script.onerror = function() { delete window[callbackName]; script.remove(); reject(new Error('JSONP request failed')); };
+            document.head.appendChild(script);
+        });
+    }
+
+    async function loadLeaderboardJSONP(islandId, containerId) {
+      const container = document.getElementById(containerId); 
+      container.innerHTML = '<div style="text-align:center; color:#ccc;">戰況連線中...</div>';
+      if(GAS_URL.includes("請將你的部署網址")) { container.innerHTML = '<div style="text-align:center; color:#ffcc00;">單機模式 (尚未綁定雲端)</div>'; return; }
+      try {
+        const requestUrl = `${GAS_URL}?action=getLeaderboard&island=${encodeURIComponent(islandId)}&cls=${encodeURIComponent(currentClass)}`;
+        const resData = await fetchJSONP(requestUrl);
+        let top7 = resData.leaderboard || []; while(top7.length < 7) top7.push({name: "虛位以待", score: 0});
+        renderLeaderboard(containerId, top7);
+      } catch (e) { container.innerHTML = '<div style="text-align:center; color:#ff4d4d;">無法連線到資料庫</div>'; }
+    }
+
+    let bgAnimFrame = null, bgParticles = [];
+    function startAtmosphere(islandId) {
+      if(bgAnimFrame) cancelAnimationFrame(bgAnimFrame);
+      const canvas = document.getElementById('bg-canvas'); const ctx = canvas.getContext('2d');
+      const resize = () => { canvas.width = canvas.parentElement.clientWidth; canvas.height = canvas.parentElement.clientHeight; };
+      resize(); window.addEventListener('resize', resize);
+      bgParticles = []; const cw = canvas.width, ch = canvas.height;
+      for(let i=0; i<80; i++) bgParticles.push({ x: Math.random() * cw, y: Math.random() * ch, size: Math.random() * 4 + 1, speedX: (Math.random() - 0.5) * 2, speedY: (Math.random() - 0.5) * 2, life: Math.random() * 100 });
+
+      function draw() {
+        ctx.clearRect(0, 0, cw, ch);
+        bgParticles.forEach(p => {
+           if(islandId === 'fire') { p.y -= 2.5; p.x += Math.sin(p.life/10); ctx.fillStyle = '#ff5500'; } 
+           else if(islandId === 'water') { p.y -= 1; p.x += Math.sin(p.life/20)*0.5; ctx.fillStyle = 'rgba(0,187,255,0.6)'; } 
+           else if(islandId === 'wind') { p.x += 15; p.y += (Math.random()-0.5); ctx.fillStyle = '#ffffff'; p.size = 2; } 
+           else if(islandId === 'earth') { p.x += 5; p.y += 1; ctx.fillStyle = '#d2b48c'; } 
+           else if(islandId === 'wood') { p.y += 1.5; p.x += Math.sin(p.life/15)*2; ctx.fillStyle = '#228b22'; } 
+           else if(islandId === 'cloud') { p.x += 0.5; p.size = 30; ctx.fillStyle = 'rgba(255,255,255,0.03)'; } 
+           else if(islandId === 'thunder') { p.y += 20; p.speedX = 0; ctx.fillStyle = Math.random()>0.9?'#fff':'#483d8b'; p.size=1.5;} 
+           else if(islandId === 'electric') { p.x += p.speedX*8; p.y += p.speedY*8; ctx.fillStyle = '#00ffff'; p.size=1.5;} 
+           else if(islandId === 'metal') { p.y += 4; p.x += (Math.random()-0.5)*2; ctx.fillStyle = '#888888'; } 
+           else if(islandId === 'light') { p.x += Math.cos(p.life/20)*2; p.y += Math.sin(p.life/20)*2; ctx.fillStyle = 'rgba(255,255,200,0.1)'; p.size=15; } 
+           else if(islandId === 'dark') { p.speedX = 0; p.speedY = 0; const alpha = Math.abs(Math.sin(p.life / 20)) * 0.6; ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`; } 
+           if(p.x > cw) p.x = 0; if(p.x < 0) p.x = cw; if(p.y > ch) p.y = 0; if(p.y < 0) p.y = ch;
+           p.life += 1; ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
+        });
+        if(islandId === 'thunder' && Math.random() > 0.98) { ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.fillRect(0, 0, cw, ch); }
+        bgAnimFrame = requestAnimationFrame(draw);
+      }
+      draw();
+    }
+
+    let gameTimer = null, timeLeft = 180, currentScore = 0, usedWords = [], currentWordObj = null, lastStartWord = "";
+    const inputField = document.getElementById('word-input'), msgField = document.getElementById('sys-message');
+
+    document.getElementById('btn-enter-game').addEventListener('click', () => {
+      document.getElementById('lobby-dialog').style.display = 'none'; document.getElementById('lobby-view').style.display = 'none'; document.getElementById('game-view').style.display = 'flex'; 
+      const isl = currentIsland; const hexColorStr = '#' + isl.color.toString(16).padStart(6, '0');
+      document.getElementById('game-island-name').innerText = isl.name; document.getElementById('game-island-name').style.color = hexColorStr; document.getElementById('game-island-desc').innerText = isl.desc;
+      document.getElementById('game-bg-layer').style.backgroundImage = `url('${isl.bg}')`;
+      startAtmosphere(isl.id);
+      
+      const islandMusic = new Audio(isl.bgm);
+      switchBgm(islandMusic); 
+      
+      // 【修正】扶助模式 60 秒
+      if (isUDLMode) { document.getElementById('normal-container').style.display = 'none'; document.getElementById('udl-container').style.display = 'flex'; timeLeft = 60; } 
+      else { document.getElementById('normal-container').style.display = 'flex'; document.getElementById('udl-container').style.display = 'none'; timeLeft = 180; }
+      
+      let arr = isl.words.filter(w => w !== lastStartWord), startWord = arr[Math.floor(Math.random() * arr.length)];
+      lastStartWord = startWord; resetGame(startWord);
+    });
+
+    function resetGame(startWord) {
+      clearInterval(gameTimer); currentScore = 0; actualUdlCount = 0; usedWords = [];
+      document.getElementById('timer').innerText = timeLeft; document.getElementById('score').innerText = currentScore;
+      inputField.value = ""; inputField.disabled = false; document.getElementById('btn-submit').disabled = false; msgField.innerText = "";
+      const displayArea = document.getElementById('display-area'); Array.from(displayArea.children).forEach(child => { if(child.id !== 'bg-canvas') child.remove(); });
+      
+      spawnNewWord(startWord);
+      if (isUDLMode) generateUdlOptions(startWord.slice(-1));
+      
+      gameTimer = setInterval(() => {
+        timeLeft--; document.getElementById('timer').innerText = timeLeft;
+        if(timeLeft <= 0) endGameJSONP();
+      }, 1000);
+    }
+
+    function spawnNewWord(t) {
+      if(currentWordObj) { currentWordObj.style.transform = "translateX(-150%) scale(0.5)"; currentWordObj.style.opacity = "0"; setTimeout(o => o.remove(), 500, currentWordObj); }
+      const nd = document.createElement('div'); nd.className = 'word-display'; nd.innerText = t; nd.style.transform = "translateY(100px) scale(0.5)"; nd.style.opacity = "0"; 
+      const themeColor = '#' + currentIsland.color.toString(16).padStart(6, '0');
+      nd.style.color = '#FFFFFF'; nd.style.textShadow = `-3px -3px 0 #000, 3px -3px 0 #000, -3px 3px 0 #000, 3px 3px 0 #000, 0 0 20px ${themeColor}, 0 0 40px ${themeColor}`;
+      document.getElementById('display-area').appendChild(nd); setTimeout(() => { nd.style.transform = "translateY(0) scale(1)"; nd.style.opacity = "1"; }, 50); currentWordObj = nd;
+    }
+
+    let udlCooldown = false;
+    function generateUdlOptions(targetChar) {
+        let correctWord = "", distractors = [], fakeWord = targetChar + (["的","了","呢","嗎","啦"][Math.floor(Math.random()*5)]);
+        let foundFamily = null; for (let familyName in udlWordFamilies) { if (udlWordFamilies[familyName][targetChar]) { foundFamily = udlWordFamilies[familyName]; break; } }
+        if (foundFamily) {
+            correctWord = foundFamily[targetChar]; let otherKeys = Object.keys(foundFamily).filter(k => k !== targetChar).sort(() => 0.5 - Math.random());
+            for(let i=0; i<3; i++) { if(otherKeys[i]) distractors.push(foundFamily[otherKeys[i]]); }
+        } else {
+            let possibleFallback = fallbackWords.filter(w => w.startsWith(targetChar));
+            if (possibleFallback.length > 0) { correctWord = possibleFallback[Math.floor(Math.random() * possibleFallback.length)]; } 
+            else { const allFam = Object.values(udlWordFamilies); const randFam = allFam[Math.floor(Math.random() * allFam.length)]; const randKey = Object.keys(randFam)[Math.floor(Math.random() * Object.keys(randFam).length)]; showMsg(`風向改變！新起點：「${randKey}」`, "#00ffcc"); return generateUdlOptions(randKey); }
+            distractors = fallbackWords.filter(w => !w.startsWith(targetChar)).sort(() => 0.5 - Math.random()).slice(0, 3);
+        }
+        while(distractors.length < 3) distractors.push(fallbackWords[Math.floor(Math.random() * fallbackWords.length)]);
+        let options = [correctWord, distractors[0], distractors[1], distractors[2], fakeWord].sort(() => 0.5 - Math.random()); 
+        renderUdlButtons(options, correctWord, targetChar);
+    }
+
+    function renderUdlButtons(options, correctWord, targetChar) {
+        const container = document.getElementById('udl-container'); container.innerHTML = '';
+        if (currentWordObj && !currentWordObj.innerText.endsWith(targetChar)) spawnNewWord(targetChar); 
+        options.forEach(opt => { const btn = document.createElement('button'); btn.className = 'udl-btn'; btn.innerText = opt; btn.onclick = () => handleUdlClick(opt, correctWord); container.appendChild(btn); });
+    }
+
+    // 【修正】UDL 計分機制：實際答對題數的一半，無條件進位
+    function handleUdlClick(selectedWord, correctWord) {
+        if(udlCooldown) return;
+        if (selectedWord === correctWord) { 
+            playSound('correct'); 
+            usedWords.push(selectedWord); 
+            actualUdlCount++; // 實際答對加一
+            currentScore = Math.ceil(actualUdlCount / 2); // 分數砍半進位
+            document.getElementById('score').innerText = currentScore; 
+            showMsg("過關！", "#00ffcc"); 
+            spawnNewWord(selectedWord); 
+            generateUdlOptions(selectedWord.slice(-1)); 
+        } 
+        else { playSound('wrong'); showMsg(`答錯了！防護冷卻 3 秒鐘`); triggerUdlCooldown(); }
+    }
+
+    function triggerUdlCooldown() { udlCooldown = true; const btns = document.querySelectorAll('.udl-btn'); btns.forEach(btn => { btn.disabled = true; }); setTimeout(() => { udlCooldown = false; btns.forEach(btn => { btn.disabled = false; }); showMsg("", ""); }, 3000); }
+
+    document.getElementById('btn-submit').addEventListener('click', processInput);
+    inputField.addEventListener('keypress', e => { if(e.key === 'Enter') processInput(); });
+
+    // 【修正】字典雙重判定機制
+    async function processInput() {
+      const ans = inputField.value.trim(); inputField.value = "";
+      if(ans.length < 2) return showMsg("答案必須至少兩個字！"); if(usedWords.includes(ans)) return showMsg(`「${ans}」已經用過囉！`);
+      const pw = currentWordObj.innerText, pLast = pw[pw.length - 1], aFirst = ans[0];
+      if (aFirst !== pLast) { playSound('wrong'); return showMsg(`接龍失敗！第一個字必須是「${pLast}」`); }
+      if (teacherWhiteList.includes(ans)) { playSound('correct'); usedWords.push(ans); currentScore++; document.getElementById('score').innerText = currentScore; showMsg("過關！", "#00ffcc"); spawnNewWord(ans); return; }
+
+      inputField.disabled = true; msgField.innerText = "雙重辭典驗證中...";
+      let isCorrect = false;
+      try {
+        // 第一關：查簡編本
+        const res = await fetch(`https://www.moedict.tw/c/${encodeURIComponent(ans)}.json`);
+        if (res.ok) {
+            isCorrect = true;
+        } else if (res.status === 404) {
+            // 第二關：簡編本查不到，改查重編本(萌典)
+            const res2 = await fetch(`https://www.moedict.tw/a/${encodeURIComponent(ans)}.json`);
+            if (res2.ok) isCorrect = true;
+            else if (res2.status === 404) isCorrect = false;
+            else throw new Error(res2.status);
+        } else {
+            throw new Error(res.status);
+        }
+      } catch (e) { showMsg("網路連線不穩，請再試一次！"); inputField.disabled = false; inputField.focus(); return; }
+      
+      if(isCorrect) { playSound('correct'); usedWords.push(ans); currentScore++; document.getElementById('score').innerText = currentScore; showMsg("過關！", "#00ffcc"); spawnNewWord(ans); } 
+      else { playSound('wrong'); showMsg(`接龍失敗！辭典沒有收錄「${ans}」`); }
+      inputField.disabled = false; inputField.focus();
+    }
+
+    function showMsg(t, c = "#ff4d4d") { msgField.innerText = t; msgField.style.color = c; setTimeout(() => { if(msgField.innerText === t) msgField.innerText = ""; }, 3000); }
+
+    async function endGameJSONP() {
+      clearInterval(gameTimer); playSound('end'); 
+      if(currentBgm) currentBgm.pause(); 
+      inputField.disabled = document.getElementById('btn-submit').disabled = true; 
+      document.getElementById('result-score').innerText = currentScore; const wordsStr = usedWords.join(', ');
+      
+      if(GAS_URL.includes("請將你的部署網址")) { msgField.innerText = "時間到！(單機模式)"; let top7 = []; while(top7.length < 7) top7.push({name: "虛位以待", score: 0}); renderLeaderboard('r-leaderboard', top7); document.getElementById('result-dialog').style.display = 'flex'; return; }
+      msgField.innerText = "時間到！成績上傳與結算中..."; msgField.style.color = "#00ffcc";
+      try {
+        const requestUrl = `${GAS_URL}?action=saveScore&island=${encodeURIComponent(currentIsland.id)}&name=${encodeURIComponent(currentPlayerName)}&score=${currentScore}&words=${encodeURIComponent(wordsStr)}&cls=${encodeURIComponent(currentClass)}`;
+        const resData = await fetchJSONP(requestUrl);
+        let top7 = resData.leaderboard || []; while(top7.length < 7) top7.push({name: "虛位以待", score: 0});
+        renderLeaderboard('r-leaderboard', top7); msgField.innerText = "成績已成功上傳！"; document.getElementById('result-dialog').style.display = 'flex';
+      } catch (e) { msgField.innerText = "成績上傳失敗。"; msgField.style.color = "#ff4d4d"; let top7 = []; while(top7.length < 7) top7.push({name: "無法連線", score: 0}); renderLeaderboard('r-leaderboard', top7); document.getElementById('result-dialog').style.display = 'flex'; }
+    }
+
+    document.getElementById('btn-back-lobby').addEventListener('click', () => {
+      if(bgAnimFrame) cancelAnimationFrame(bgAnimFrame);
+      document.getElementById('game-bg-layer').style.backgroundImage = 'none'; document.getElementById('result-dialog').style.display = 'none'; document.getElementById('game-view').style.display = 'none'; document.getElementById('lobby-view').style.display = 'flex';
+      switchBgm(bgmLobby); 
+    });
+  </script>
+</body>
+</html>
